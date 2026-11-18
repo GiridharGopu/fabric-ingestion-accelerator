@@ -1,0 +1,15 @@
+{
+  "connections": [
+    {"connection_id":"crm","environment":"dev","connector":"api","options":{"base_url":"https://crm.example.com","auth":"oauth_client_credentials","token_url":"https://identity.example.com/oauth2/token","client_id":"replace-me","client_secret":"crm-client-secret"}},
+    {"connection_id":"workday","environment":"dev","connector":"raas","options":{"base_url":"https://workday.example.com","auth":"basic","user":"replace-me","password_secret":"workday-isu-password"}},
+    {"connection_id":"erp","environment":"dev","connector":"sqlserver","options":{"url":"jdbc:sqlserver://sql.example.com:1433;databaseName=ERP;encrypt=true;trustServerCertificate=false","user":"fabric_reader","password_secret":"erp-reader-password"}},
+    {"connection_id":"partner","environment":"dev","connector":"adls","options":{"root":"abfss://incoming@account.dfs.core.windows.net/deliveries"}}
+  ],
+  "datasets": [
+    {"dataset_id":"crm__accounts","connection_id":"crm","load_mode":"watermark","enabled":false,"run_group":"hourly","options":{"path":"v1/accounts","pagination":"next_link","next_field":"links.next","from_param":"updated_from","to_param":"updated_before","initial_watermark":"2026-01-01T00:00:00Z","lookback_seconds":300,"safety_lag_seconds":120}},
+    {"dataset_id":"workday__workers","connection_id":"workday","load_mode":"full","enabled":false,"run_group":"daily","options":{"path":"ccx/service/customreport2/tenant/owner/Workers","params":{"format":"xml"},"extension":"xml"}},
+    {"dataset_id":"erp__customers","connection_id":"erp","load_mode":"watermark","enabled":false,"run_group":"hourly","options":{"table":"dbo.Customers","watermark_column":"updated_utc","initial_watermark":"2026-01-01T00:00:00Z","safety_lag_seconds":60,"lookback_seconds":300}},
+    {"dataset_id":"erp__orders_changes","connection_id":"erp","load_mode":"sqlserver_cdc","enabled":false,"run_group":"hourly","options":{"capture_instance":"dbo_Orders","initial_lsn":"REPLACE_WITH_BASELINE_LSN_HEX"}},
+    {"dataset_id":"partner__orders","connection_id":"partner","load_mode":"file_incremental","enabled":false,"run_group":"daily","options":{"prefix":"orders","glob":"*.xlsx","max_files":500}}
+  ]
+}
