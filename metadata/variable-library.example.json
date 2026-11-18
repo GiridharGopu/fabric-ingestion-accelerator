@@ -1,0 +1,12 @@
+{
+  "name": "vl_ingestion",
+  "string_variables": {
+    "client_code": "demo",
+    "environment": "dev",
+    "workspace_id": "<workspace GUID>",
+    "lakehouse_id": "<Lakehouse GUID>",
+    "lakehouse_name": "lh_ingestion_dev",
+    "landing_root": "Files/landing",
+    "vault_url": "https://replace-me.vault.azure.net/"
+  }
+}

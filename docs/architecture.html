@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How the Fabric Landing Accelerator Works</title>
+<style>
+:root{color-scheme:light;--ink:#142b2a;--copy:#395451;--paper:#f3f7f4;--white:#fff;--line:#ccddd5;--teal:#006653;--mint:#d8f6e9;--amber:#fff1d5;--red:#8a3b15}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.55 system-ui,sans-serif}.wrap{width:min(1110px,calc(100% - 36px));margin:auto}header{background:radial-gradient(ellipse at 90% 0%,#226c59,transparent 65%),#0b3029;color:white;padding:65px 0 49px}header p{max-width:650px;color:#d3ede4;font-size:1.12rem;margin-bottom:0}h1,h2,h3,p{margin-top:0}h1{max-width:830px;font-size:clamp(2.5rem,6vw,5rem);line-height:1.02;letter-spacing:-.06em;margin-bottom:21px}h2{font-size:clamp(1.7rem,4vw,2.55rem);letter-spacing:-.04em;line-height:1.1;margin-bottom:14px}h3{font-size:1.03rem;margin-bottom:7px}p{color:var(--copy)}nav{border-bottom:1px solid var(--line);background:#fff}nav .wrap{display:flex;gap:24px;flex-wrap:wrap;padding:14px 0}a{color:var(--teal);text-underline-offset:4px}section{padding:38px 0;border-bottom:1px solid var(--line);scroll-margin-top:12px}.grid,.flow{display:grid;gap:12px}.three{grid-template-columns:repeat(3,minmax(0,1fr))}.flow{grid-template-columns:repeat(4,minmax(0,1fr));margin:20px 0}.card,.panel{background:white;border:1px solid var(--line);border-radius:15px;padding:19px;min-width:0}.card p,.panel p:last-child{margin-bottom:0}.node{position:relative;border-top:4px solid var(--teal)}.node b{display:block;color:var(--teal);font-family:monospace;margin-bottom:8px}.node:not(:last-child):after{content:"→";position:absolute;right:-14px;top:45%;z-index:1;color:var(--teal);background:var(--paper);width:16px;text-align:center;font-weight:bold}.split{display:grid;grid-template-columns:1fr 1.15fr;gap:18px;align-items:start}.choice,.controls{display:flex;flex-wrap:wrap;gap:8px;margin:15px 0}button{background:white;color:var(--ink);border:1px solid #9dbbb0;border-radius:8px;font:inherit;font-weight:650;padding:8px 13px;cursor:pointer}button[aria-pressed=true],button.primary{background:var(--teal);color:white;border-color:var(--teal)}button:disabled{opacity:.55;cursor:default}button:focus-visible,a:focus-visible{outline:3px solid #d77624;outline-offset:3px}code{color:#005545;font-size:.93em;overflow-wrap:anywhere}pre{background:#102e28;border-radius:10px;color:#d7faed;padding:17px;overflow:auto;font-size:.85rem;margin:12px 0 0}pre code{color:inherit;overflow-wrap:normal}.label{display:block;color:var(--teal);font-size:.78rem;font-weight:750;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}.track{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:16px 0}.track div{padding:13px;border-radius:9px;background:#e8f0ed}.track div:nth-child(2){background:var(--mint);border-bottom:3px solid var(--teal)}.track strong,.track span{display:block}.track span{font-size:.88rem;color:var(--copy)}.track strong{overflow-wrap:anywhere}.jobs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;margin:15px 0}.job{padding:10px 4px;text-align:center;border-radius:8px;background:var(--mint);border:1px solid #a2d6c0;color:#195446;font-size:.85rem}.job b{display:block}.job[data-state=failed]{background:var(--amber);color:var(--red);border-color:#e1bb85}.job[data-state=skipped]{background:#edf0ef;border-color:#c9d2ce;color:#3f5250}.callout{border-left:4px solid var(--teal);padding:12px 15px;background:var(--mint);margin:16px 0 0;border-radius:0 9px 9px 0}.table{overflow:auto}table{width:100%;border-collapse:collapse;text-align:left}th,td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}th{background:#e4f1eb}footer{padding:24px 0;color:var(--copy)}@media(max-width:760px){.three,.split{grid-template-columns:1fr}.flow{grid-template-columns:repeat(2,minmax(0,1fr))}.node:after{display:none}}@media(max-width:420px){.flow,.track{grid-template-columns:1fr}.jobs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+</head>
+<body>
+<header><div class="wrap"><h1>How Fabric lands data from multiple sources</h1><p>Follow one run from client configuration to a published OneLake batch. Explore what changes for REST APIs, Workday RaaS, SQL Server CDC, and ADLS files.</p></div></header>
+<nav aria-label="Guide sections"><div class="wrap"><a href="#architecture">Architecture</a><a href="#metadata">Metadata</a><a href="#patterns">Load modes</a><a href="#recovery">Retry simulator</a><a href="#onboard">Client setup</a></div></nav>
+<main class="wrap">
+<section id="architecture">
+<h2>One notebook, multiple sources</h2>
+<p>Pass a dataset ID or a run group and a stable batch ID. Fabric uses the registered metadata to decide what to extract.</p>
+<div class="flow" aria-label="Execution order">
+<article class="card node"><b>01 · Resolve</b><h3>Workspace settings</h3><p><code>vl_ingestion</code> binds the environment, target Lakehouse, Landing root, and Key Vault reference.</p></article>
+<article class="card node"><b>02 · Plan</b><h3>Job and checkpoint</h3><p><code>nb_land</code> reads the dataset and connection rows, then freezes a range or file list when the mode requires it.</p></article>
+<article class="card node"><b>03 · Extract</b><h3>Connector to OneLake</h3><p>REST, RaaS, JDBC, or ADLS writes into a unique attempt folder. Files coexist even when an attempt fails.</p></article>
+<article class="card node"><b>04 · Publish</b><h3>Manifest and ledger</h3><p>After the payload and manifest are written, a Delta success event publishes the batch and its next checkpoint.</p></article>
+</div>
+<div class="callout"><strong>Landing is the handoff.</strong> Bronze consumers read the manifest paths from successful ledger events. Silver and Gold can then apply data quality checks, deduplication, and business rules separately.</div>
+</section>
+<section id="metadata">
+<h2>What changes for each client?</h2>
+<div class="grid three">
+<article class="card"><span class="label">Workspace</span><h3><code>vl_ingestion</code></h3><p>Lakehouse and workspace IDs, client code, environment, Landing root, and Key Vault URL.</p></article>
+<article class="card"><span class="label">Connection</span><h3><code>ops.connection</code></h3><p>One row per connection and environment. Holds the adapter, endpoint or storage root, and secret names.</p></article>
+<article class="card"><span class="label">Dataset</span><h3><code>ops.dataset</code></h3><p>One row per dataset. Holds the connection ID, load mode, run group, and extraction options.</p></article>
+</div>
+<div class="panel" style="margin-top:12px"><h3>Example routing for CRM accounts</h3><p>The notebook reads <code>crm__accounts</code>, resolves connection <code>crm</code> for <code>dev</code>, then runs the API adapter with a timestamp watermark. Key Vault provides the credential at runtime.</p><pre><code>dataset_id       crm__accounts
+connection_id    crm
+connector        api
+load_mode        watermark
+run_group        hourly</code></pre></div>
+</section>
+<section id="patterns">
+<h2>How the next batch is selected</h2>
+<p>Choose a source to see how the configuration changes the extraction and the checkpoint.</p>
+<div class="choice" aria-label="Source examples">
+<button type="button" data-source="api" aria-pressed="true">REST API</button><button type="button" data-source="raas" aria-pressed="false">Workday RaaS</button><button type="button" data-source="sql" aria-pressed="false">SQL watermark</button><button type="button" data-source="cdc" aria-pressed="false">SQL CDC</button><button type="button" data-source="adls" aria-pressed="false">ADLS files</button>
+</div>
+<div class="panel" id="example" aria-live="polite">
+<h3 id="pattern-title">REST API · timestamp incremental</h3>
+<p id="pattern-description">The adapter sends configured time filters and follows cursor or next links. Each response page lands as text.</p>
+<div class="track" aria-label="Example extraction sequence">
+<div><strong id="step-a">09:00 UTC</strong><span id="note-a">Last committed watermark</span></div>
+<div><strong id="step-b">08:55 to 09:58 UTC</strong><span id="note-b">Five-minute overlap and two-minute safety lag</span></div>
+<div><strong id="step-c">09:58 UTC</strong><span id="note-c">Watermark after success</span></div>
+</div>
+<pre><code id="payload">Files/landing/demo/dev/crm__accounts/batch_1000/&lt;attempt&gt;/
+  page_000001.json
+  page_000002.json
+  _manifest.json</code></pre>
+<p id="pattern-detail" style="margin-top:13px">Illustrative run at 10:00 UTC. The API must honor the configured bounds and Bronze or Silver handles duplicates from the overlap.</p>
+</div>
+</section>
+<section id="recovery">
+<div class="split">
+<div><h2>Two jobs fail. What gets retried?</h2><p>This simulation uses ten jobs in one run group. Jobs 04 and 09 fail after their plans are saved. Reuse the same group and batch ID, or pass a single failed dataset ID.</p>
+<p>A failed attempt can leave files in its own folder. The retry writes to a fresh folder and reuses the frozen bounds or file list. Its checkpoint moves when a success event is committed.</p>
+<div class="callout">Serialize overlapping runs for the same dataset. An unresolved batch blocks a newer batch for that dataset.</div></div>
+<div class="panel"><h3>Batch <code>batch_1000</code></h3><div class="jobs" id="jobs" aria-label="Status of ten simulated jobs"></div><p id="summary" role="status">8 published · 2 failed · 2 checkpoints unchanged</p><div class="controls"><button class="primary" type="button" id="retry">Retry same batch</button><button type="button" id="reset">Reset demo</button></div><noscript>The original run publishes eight jobs. Retrying the same batch skips those eight and reruns jobs 04 and 09.</noscript></div>
+</div>
+</section>
+<section id="onboard">
+<h2>From Git to a first client run</h2>
+<ol>
+<li>Create a schema-enabled Lakehouse and <code>vl_ingestion</code> in DEV. Set up the runtime identity and source access.</li>
+<li>Import and run <code>nb_bootstrap</code> to create the Delta tables and optionally seed disabled examples.</li>
+<li>Configure one connection and enable one dataset. Run <code>nb_land</code> with a stable test batch ID.</li>
+<li>Check the manifest in OneLake and the success event in <code>ops.landing_event</code>. Run the same batch again and expect <code>already_succeeded</code>.</li>
+</ol>
+<div class="table"><table><thead><tr><th>Source condition</th><th>What the client setup must cover</th></tr></thead><tbody>
+<tr><td>SQL CDC onboarding</td><td>Coordinate a consistent baseline and starting LSN. An expired LSN requires baseline recovery.</td></tr>
+<tr><td>API or RaaS incremental</td><td>Confirm server-side filters, time semantics, pagination, and how deletes are surfaced.</td></tr>
+<tr><td>ADLS files</td><td>Publish completed immutable files. The engine compares path, size, and modification time. Disappearance does not emit a delete.</td></tr>
+<tr><td>New connector type</td><td>Add an adapter for a source engine, authentication flow, or delivery pattern outside the implemented combinations.</td></tr>
+</tbody></table></div>
+</section>
+<footer>Microsoft Fabric metadata-driven Landing accelerator · Architecture and run walkthrough</footer>
+</main>
+<script>
+const examples = {
+ api:["REST API · timestamp incremental","The adapter sends configured time filters and follows cursor or next links. Each response page lands as text.","09:00 UTC","Last committed watermark","08:55 to 09:58 UTC","Five-minute overlap and two-minute safety lag","09:58 UTC","Watermark after success","crm__accounts","  page_000001.json\n  page_000002.json","Illustrative run at 10:00 UTC. The API must honor the configured bounds and Bronze or Silver handles duplicates from the overlap."],
+ raas:["Workday RaaS · full report","The adapter runs the configured report and saves the response as XML, JSON, or CSV.","Report endpoint","Configured in the dataset row","Full export","Uses report prompts when configured","Report published","Full mode has no watermark","workday__workers","  page_000001.xml","Incremental mode requires report prompts that apply the requested time range."],
+ sql:["SQL Server · timestamp incremental","The adapter builds a bounded JDBC query and lands its result as Parquet.","09:00 UTC","Last committed watermark","09:00 ≤ time < 09:59","UTC watermark column, zero overlap in this example","09:59 UTC","Watermark after success","erp__customers","  data/ [Parquet]","Choose a source timestamp that captures changes. An overlap can capture late updates and requires downstream deduplication."],
+ cdc:["SQL Server · native CDC","The adapter enumerates change rows between SQL Server LSN bounds. It retains the source operation and ordering fields.","Previous LSN","Saved position or coordinated baseline","Next LSN → current max","Inclusive change range, with before and after images","Current max LSN","Position after success","erp__orders_changes","  data/ [Parquet with CDC metadata]","If retention has removed required changes, the batch stops. Recover the baseline before resuming."],
+ adls:["ADLS · incremental files","The adapter inventories matching objects and compares versions against previously successful plans.","A.xlsx, B.xlsx","Previously published versions","C.xlsx","New matching file copied unchanged","C.xlsx recorded","Inventory updated by the success event","partner__orders","  <version-hash>_C.xlsx","The adapter copies the workbook bytes. Bronze can parse the workbook downstream."]
+};
+const ids=["pattern-title","pattern-description","step-a","note-a","step-b","note-b","step-c","note-c"];
+const sourceButtons=[...document.querySelectorAll("[data-source]")];
+sourceButtons.forEach(button=>button.addEventListener("click",()=>{
+  const data=examples[button.dataset.source];
+  sourceButtons.forEach(item=>item.setAttribute("aria-pressed",String(item===button)));
+  ids.forEach((id,index)=>document.getElementById(id).textContent=data[index]);
+  document.getElementById("payload").textContent="Files/landing/demo/dev/"+data[8]+"/batch_1000/<attempt>/\n"+data[9]+"\n  _manifest.json";
+  document.getElementById("pattern-detail").textContent=data[10];
+}));
+function renderJobs(retry){
+  const jobs=document.getElementById("jobs");
+  jobs.replaceChildren();
+  for(let id=1;id<=10;id++){
+    const failed=id===4||id===9;
+    const state=retry?(failed?"Recovered":"Skipped"):(failed?"Failed":"Published");
+    const item=document.createElement("div");
+    item.className="job";
+    item.dataset.state=state.toLowerCase();
+    const name=document.createElement("b");
+    name.textContent="Job "+String(id).padStart(2,"0");
+    item.append(name,state);
+    jobs.append(item);
+  }
+  document.getElementById("summary").textContent=retry?"8 skipped · 2 rerun and published in this simulation":"8 published · 2 failed · 2 checkpoints unchanged";
+  document.getElementById("retry").disabled=retry;
+}
+document.getElementById("retry").addEventListener("click",()=>renderJobs(true));
+document.getElementById("reset").addEventListener("click",()=>renderJobs(false));
+renderJobs(false);
+</script>
+</body>
+</html>
