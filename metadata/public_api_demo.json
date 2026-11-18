@@ -1,0 +1,12 @@
+{
+  "usgs_earthquakes": {
+    "base_url": "https://earthquake.usgs.gov",
+    "path": "fdsnws/event/1/query",
+    "params": {"format":"geojson","starttime":"2024-01-01","endtime":"2024-01-31T23:59:59.999","minmagnitude":6,"limit":1000}
+  },
+  "worldbank_india_population": {
+    "base_url": "https://api.worldbank.org",
+    "path": "v2/country/IND/indicator/SP.POP.TOTL",
+    "params": {"format":"json","date":"2019:2023","per_page":50}
+  }
+}

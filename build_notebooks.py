@@ -140,3 +140,23 @@ if environment != expected_environment:
     raise ValueError("Unexpected environment")
 validate_orders(spark, dataset_id, batch_id, library.getVariable("client_code"), environment)
 '''.strip(), []))
+
+public_api_sources = (ROOT / "metadata/public_api_demo.json").read_text()
+fabric_demo = (ROOT / "src/public_api_fabric.py").read_text()
+for local_import in ("from engine import token\n", "from public_api_demo import earthquake_rows, population_rows\n"):
+    fabric_demo = fabric_demo.replace(local_import, "")
+write("nb_public_api_end_to_end", "Public API demo from Landing to Gold",
+      ('batch_id = "public_api_001"', ["parameters"]),
+      ((ROOT / "src/engine.py").read_text(), []),
+      ((ROOT / "src/public_api_demo.py").read_text(), []),
+      (fabric_demo, []),
+      (f'''
+import notebookutils
+
+library = notebookutils.variableLibrary.getLibrary("vl_ingestion")
+engine = Landing(spark, notebookutils, library.getVariable("client_code"),
+                 library.getVariable("environment"), library.getVariable("landing_root"),
+                 library.getVariable("vault_url"))
+sources = json.loads({public_api_sources!r})
+display(run_public_demo(engine, sources, batch_id))
+'''.strip(), []))
